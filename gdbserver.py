@@ -6,7 +6,7 @@ import binascii
 import enum
 
 logger = logging.getLogger('gdbserver')
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.DEBUG)
 
 #### This should be generated from the gdb signals.def
 class Signals(enum.IntEnum):
@@ -102,7 +102,7 @@ architectures = {
             {'name': 'mxcsr', 'size': 4 },
         ]
     },
-    'i386:x86-64': {
+    'i386:x86_64': {
         'registers': [
             {'name': 'rax', 'size': 8 },
             {'name': 'rbx', 'size': 8 },
@@ -225,6 +225,11 @@ class GdbHostStub(object):
         #### Standard General Queries
         self.add_general_query_handler(b'Supported', self.general_query_supported)
         self.add_general_query_handler(b'Attached', self.general_query_attached)
+        self.add_general_query_handler(b'LaunchGDBServer;host', self.general_query_launch_gdb_server)
+        self.add_general_query_handler(b'fProcessInfo', self.general_query_process_info_first);
+        self.add_general_query_handler(b'sProcessInfo', self.general_query_process_info_subsequent);
+        #self.add_general_query_handler(b'C', self.general_query_current_thread);
+        self.add_general_query_handler(b'HostInfo', self.general_query_host_info);
 
         #### No ACK mode handler
         self.add_feature(b'QStartNoAckMode')
@@ -240,9 +245,9 @@ class GdbHostStub(object):
 
         #### Thread Info
         self.add_packet_handler(b'H', self.set_thread)
-#        self.add_general_query_handler(b'C', self.general_query_current_thread)
-#        self.add_general_query_handler(b'fThreadInfo', self.general_query_thread_info_first)
-#        self.add_general_query_handler(b'sThreadInfo', self.general_query_thread_info_subsequent)
+        self.add_general_query_handler(b'C', self.general_query_current_thread)
+        self.add_general_query_handler(b'fThreadInfo', self.general_query_thread_info_first)
+        self.add_general_query_handler(b'sThreadInfo', self.general_query_thread_info_subsequent)
 
         #### Tracepoint Support
 #        self.add_general_query_handler(b'TStatus', self.general_query_trace_status)
@@ -252,6 +257,7 @@ class GdbHostStub(object):
 #        self.add_general_query_handler(b'TsP', self.general_query_tracepoint_subsequent)
 
         self.add_verbose_handler(b'Kill', self.vkill)
+        self.add_verbose_handler(b'Attach', self.vattach)
 
     def add_feature(self, feature, value = True):
         self.features[feature] = value
@@ -523,6 +529,9 @@ class GdbHostStub(object):
     def vkill(self, args):
         pass
 
+    def vattach(self, args):
+        self.rsp.send_packet(b'S05') # SIGTRAP
+
     def write_memory_impl(self, address, size):
         raise NotImplementedError("implement GdbHostStub and override write_memory_impl")
 
@@ -618,8 +627,17 @@ class GdbHostStub(object):
     def general_query_attached(self, args):
         self.rsp.send_packet(b'1')
 
-    def general_query_current_thread(self, args):
-        self.rsp.send_packet(b'QC1')
+    def general_query_launch_gdb_server(self, args):
+        self.rsp.send_packet(b'port:1234;host:192.168.10.5')
+
+    def general_query_process_info_first(self, args):
+        self.rsp.send_packet(b'pid:2;ppid:1;name:6d6d6d;all_users:1;triple:' + binascii.hexlify(str.encode('x86_64-pc-windows-msvc')) + b';')
+
+    def general_query_process_info_subsequent(self, args):
+        self.rsp.send_packet(b'E04')
+
+    def general_query_host_info(self, args):
+        self.rsp.send_packet(b'triple:' + binascii.hexlify(str.encode('x86_64-pc-windows-msvc')) + b';')
 
     def general_query_supported(self, args):
         features = []
@@ -638,6 +656,9 @@ class GdbHostStub(object):
 
     def general_query_thread_info_subsequent(self, args):
         self.rsp.send_packet(b'')
+
+    def general_query_current_thread(self, args):
+        self.rsp.send_packet(b'QC1')
 
     #### XML Object transfer support
     def set_xml(self, obj, annex, xml):
@@ -747,7 +768,8 @@ class GdbRemoteSerialProtocol(object):
                 raise RemoteException('Wrong checksum {}'.format(checksum))
 
             logger.debug('[GDB][RX] ${0!s}#{1:x}'.format(message.decode('utf-8'), checksum))
-            self.send_ack()
+            if not self.no_acknowledgement_mode:
+                self.send_ack()
 
         return message
 

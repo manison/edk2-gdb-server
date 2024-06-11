@@ -220,7 +220,7 @@ class UdkGdbStub(gdbserver.GdbHostStub):
         """Reset
         Called when the UDK Target Reboots to re-initialize any transient GDB state
         """
-        logger.warn("target reset()")
+        logger.warning("target reset()")
         for i, breakpoint in enumerate(self.breakpoints):
             if breakpoint.state == gdbserver.BreakpointState.BP_ACTIVE:
                 breakpoint.state = gdbserver.BreakpointState.BP_SET
@@ -230,7 +230,7 @@ class UdkGdbStub(gdbserver.GdbHostStub):
         if self.udk.arch == udkserver.CpuArch.DEBUG_DATA_BREAK_CPU_ARCH_IA32:
             self.set_architecture('i386')
         elif self.udk.arch == udkserver.CpuArch.DEBUG_DATA_BREAK_CPU_ARCH_X64:
-            self.set_architecture('i386:x86_x64')
+            self.set_architecture('i386:x86_64')
         self.libraries = xml.etree.ElementTree.Element('library-list')
 
 
@@ -652,7 +652,7 @@ class UdkStub(udkserver.UdkTargetStub):
 
 
 class UdkGdbServer():
-    def __init__(self, serial_name = '/dev/ttyGS0', host = '0.0.0.0', port = 1234):
+    def __init__(self, serial_name = '/dev/ttyS0', host = '0.0.0.0', port = 1234):
         self._serial_name = serial_name
         self._serial = None
 
@@ -675,7 +675,7 @@ class UdkGdbServer():
 
     def start_serial(self):
         ### Initialize the Serial port
-        self._serial = serial.Serial(self._serial_name)
+        self._serial = serial.Serial(self._serial_name, 9600)
         self._serial.reset_input_buffer()
         self._serial.reset_output_buffer()
         self.udk = udkserver.UdkTarget(self._serial, UdkStub, self)

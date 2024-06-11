@@ -11,7 +11,7 @@ import enum
 import binascii
 
 logger = logging.getLogger('udkserver')
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.DEBUG)
 
 PACKET_READ_TIMEOUT = 2
 
@@ -281,7 +281,7 @@ class Packet(object):
     def from_bytes(cls, data):
         starting_symbol, command, length, seqno, crc = struct.unpack("<BBBBH", data[0:6])
         if crc != cls.calculate_crc16(data[0:4] + b'\x00\x00' + data[6:length]):
-#            logger.debug(str(binascii.hexlify(data)))
+            logger.debug(str(binascii.hexlify(data)))
             raise CrcError(crc)
 
         data = data[6:length]
@@ -566,7 +566,7 @@ class UdkTargetStub(object):
     def handle_init_break(self, packet):
         logger.debug("InitBreak() called")
         self.get_revision()
-#        self.put_debugger_setting(DEBUG_AGENT_SETTING_PRINT_ERROR_LEVEL, 0x1f)  # Trace setting
+        self.put_debugger_setting(DEBUG_AGENT_SETTING_PRINT_ERROR_LEVEL, 0x1f)  # Trace setting
 #        self.put_debugger_setting(DEBUG_AGENT_SETTING_SMM_ENTRY_BREAK, 0)  # Trace setting
 #        self.put_debugger_setting(DEBUG_AGENT_SETTING_BOOT_SCRIPT_ENTRY_BREAK, 0)  # Trace setting
         self.get_viewpoint()
@@ -578,7 +578,7 @@ class UdkTargetStub(object):
     def handle_attach_break(self, packet):
         logger.debug("AttachBreak() called")
         self.get_revision()
-#        self.put_debugger_setting(DEBUG_AGENT_SETTING_PRINT_ERROR_LEVEL, 0x1f)  # Trace setting
+        self.put_debugger_setting(DEBUG_AGENT_SETTING_PRINT_ERROR_LEVEL, 0x1f)  # Trace setting
 #        self.put_debugger_setting(DEBUG_AGENT_SETTING_SMM_ENTRY_BREAK, 0)  # Trace setting
 #        self.put_debugger_setting(DEBUG_AGENT_SETTING_BOOT_SCRIPT_ENTRY_BREAK, 0)  # Trace setting
         self.get_viewpoint()
